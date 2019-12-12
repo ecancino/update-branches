@@ -43,20 +43,23 @@ if [ $? -eq 0 ]; then
         then
             # printf "Updating ${Yellow}$branch${Reset}\n"
             em "Updating " $branch "\n"
-
-            printf "\t⏱: Cheking out";
-            git checkout "$branch" --quiet;
-            st "$?";
-
-            em "\t⏱: Rebase from " $UPSTREAM_BRANCH
-            git rebase "$UPSTREAM_BRANCH" --quiet;
-            st "$?";
-
-            git ls-remote --exit-code --quiet --heads origin "$branch" > /dev/null;
-            if [ $? -eq 0 ]; then    
-                printf "\t⏱: Update remote ";
-                git push --force-with-lease --quiet;
+            read -p "Are you sure you want to update? " -n 1 -r
+            if [[ $REPLY =~ ^[Yy]$ ]]
+            then
+                printf "\t⏱: Cheking out";
+                git checkout "$branch" --quiet;
                 st "$?";
+
+                em "\t⏱: Rebase from " $UPSTREAM_BRANCH
+                git rebase "$UPSTREAM_BRANCH" --quiet;
+                st "$?";
+
+                git ls-remote --exit-code --quiet --heads origin "$branch" > /dev/null;
+                if [ $? -eq 0 ]; then    
+                    printf "\t⏱: Update remote ";
+                    git push --force-with-lease --quiet;
+                    st "$?";
+                fi
             fi
         fi
     done
