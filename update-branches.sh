@@ -18,55 +18,64 @@ display_usage() {
     exit 1
 } 
 
-REPO_PATH=$1
-UPSTREAM_BRANCH=${2:-"develop"}
-SKIP_BRANCHES=("develop", "master")
+update_upstream() {
+    em "Update " $1
+    git checkout "$1" --quiet;
+    git pull --rebase origin "$1"  --quiet;
+    st "$?"
+}
+
+checkout_branch() {
+    printf "\t⏱: Cheking out";
+    git checkout "$1" --quiet;
+    st "$?";
+}
+
+rebase_branch() {
+    printf "\t⏱: Rebase from ${1}"
+    git rebase "$1" --quiet;
+    st "$?";
+}
+
+update_branch() {
+    git ls-remote --exit-code --quiet --heads origin "$1" > /dev/null;
+    if [ $? -eq 0 ]; then    
+        printf "\t⏱: Update remote ";
+        git push --force-with-lease --quiet;
+        st "$?";
+    fi
+}
 
 if [  $# -eq 0 ]; then 
     display_usage
     exit 1
 fi 
 
+REPO_PATH=$1
+UPSTREAM_BRANCH=${2:-"develop"}
+SKIP_BRANCHES=("develop", "master")
+
 em "Entering " $REPO_PATH
 cd $REPO_PATH;
 st "$?"
 
-if [ $? -eq 0 ]; then 
-    em "Update " $UPSTREAM_BRANCH
-    git checkout "$UPSTREAM_BRANCH" --quiet;
-    git pull --rebase origin "$UPSTREAM_BRANCH"  --quiet;
-    st "$?"
+update_upstream $UPSTREAM_BRANCH
 
-    for branch in $(git for-each-ref --format='%(refname:short)' refs/heads/); do
-        # if [ "$branch" != "develop" ] && [ "$branch" != "master" ]
-        if [[ ! "${SKIP_BRANCHES[@]}" =~ "${branch}" ]];
-        then
-            # printf "Updating ${Yellow}$branch${Reset}\n"
-            em "Updating " $branch "\n"
-            read -p "Are you sure you want to update? " -n 1 -r
-            if [[ $REPLY =~ ^[Yy]$ ]]
-            then
-                printf "\t⏱: Cheking out";
-                git checkout "$branch" --quiet;
-                st "$?";
+for branch in $(git for-each-ref --format='%(refname:short)' refs/heads/); do
+    if [[ ! "${SKIP_BRANCHES[@]}" =~ "${branch}" ]];
+    then
+        em "Updating " $branch "\n"
+        # read -p "Are you sure you want to update?" -n 1 -r
+        # if [[ $REPLY =~ ^[Yy]$ ]]
+        # then
+            checkout_branch $branch;
+            rebase_branch $UPSTREAM_BRANCH;
+            update_branch  $branch;
+        # fi
+    fi
+done
 
-                em "\t⏱: Rebase from " $UPSTREAM_BRANCH
-                git rebase "$UPSTREAM_BRANCH" --quiet;
-                st "$?";
+echo " "
+git checkout "$UPSTREAM_BRANCH" --quiet;
+printf "${Green}DONE${Reset}!\n"; 
 
-                git ls-remote --exit-code --quiet --heads origin "$branch" > /dev/null;
-                if [ $? -eq 0 ]; then    
-                    printf "\t⏱: Update remote ";
-                    git push --force-with-lease --quiet;
-                    st "$?";
-                fi
-            fi
-        fi
-    done
-
-    echo " "
-
-    git checkout "$UPSTREAM_BRANCH" --quiet;
-
-    printf "${Green}DONE${Reset}!\n"; 
-fi
